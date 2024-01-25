@@ -34,6 +34,7 @@ import {
   debounceTime,
   distinctUntilChanged,
   filter,
+  timeout,
 } from 'rxjs/operators'
 import { DocumentSuggestions } from 'src/app/data/document-suggestions'
 import {
@@ -454,6 +455,7 @@ export class DocumentDetailComponent
       .getMetadata(doc.id)
       .pipe(
         first(),
+        timeout(5000),
         takeUntil(this.unsubscribeNotifier),
         takeUntil(this.docChangeNotifier)
       )
@@ -479,6 +481,7 @@ export class DocumentDetailComponent
         .getSuggestions(doc.id)
         .pipe(
           first(),
+          timeout(10000),
           takeUntil(this.unsubscribeNotifier),
           takeUntil(this.docChangeNotifier)
         )

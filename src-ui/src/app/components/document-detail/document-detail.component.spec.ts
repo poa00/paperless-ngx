@@ -322,6 +322,7 @@ describe('DocumentDetailComponent', () => {
     )
     tick(1000)
     expect(component.documentForm.get('title').value).toEqual('Foo Bar')
+    discardPeriodicTasks()
   }))
 
   it('should load non-open document via param', () => {
