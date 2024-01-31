@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: paperless-ngx\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-05 21:26-0800\n"
-"PO-Revision-Date: 2024-01-06 05:27\n"
+"PO-Revision-Date: 2024-01-31 00:23\n"
 "Last-Translator: \n"
 "Language-Team: Czech\n"
 "Language: cs_CZ\n"
@@ -569,19 +569,19 @@ msgstr ""
 
 #: documents/models.py:756
 msgid "Date"
-msgstr ""
+msgstr "Datum"
 
 #: documents/models.py:757
 msgid "Boolean"
-msgstr ""
+msgstr "Boolean"
 
 #: documents/models.py:758
 msgid "Integer"
-msgstr ""
+msgstr "Integer"
 
 #: documents/models.py:759
 msgid "Float"
-msgstr ""
+msgstr "Float"
 
 #: documents/models.py:760
 msgid "Monetary"
@@ -617,11 +617,11 @@ msgstr ""
 
 #: documents/models.py:903
 msgid "Document Added"
-msgstr ""
+msgstr "Dokument byl přidán"
 
 #: documents/models.py:904
 msgid "Document Updated"
-msgstr ""
+msgstr "Doklad byl aktualizován"
 
 #: documents/models.py:907
 msgid "Consume Folder"
@@ -753,11 +753,11 @@ msgstr ""
 
 #: documents/models.py:1114
 msgid "actions"
-msgstr ""
+msgstr "akce"
 
 #: documents/models.py:1117
 msgid "enabled"
-msgstr ""
+msgstr "povoleno"
 
 #: documents/serialisers.py:111
 #, python-format
@@ -815,11 +815,11 @@ msgstr "Vaše uživatelské jméno a heslo se neshodují. Prosím, zkuste to zno
 
 #: documents/templates/registration/login.html:48
 msgid "Share link was not found."
-msgstr ""
+msgstr "Tento odkaz nebyl nalezen."
 
 #: documents/templates/registration/login.html:52
 msgid "Share link has expired."
-msgstr ""
+msgstr "Platnost odkazu vypršela."
 
 #: documents/templates/registration/login.html:55
 msgid "Username"
@@ -835,20 +835,20 @@ msgstr "Přihlásit se"
 
 #: documents/templates/registration/login.html:70
 msgid "Forgot your password?"
-msgstr ""
+msgstr "Zapomněli jste heslo?"
 
 #: documents/templates/registration/password_reset_complete.html:14
 msgid "Paperless-ngx reset password complete"
-msgstr ""
+msgstr "Paperless-ngx obnovení hesla dokončeno"
 
 #: documents/templates/registration/password_reset_complete.html:40
 msgid "Password reset complete."
-msgstr ""
+msgstr "Obnovení hesla dokončeno."
 
 #: documents/templates/registration/password_reset_complete.html:42
 #, python-format
 msgid "Your new password has been set. You can now <a href=\"%(login_url)s\">log in</a>"
-msgstr ""
+msgstr "Vaše nové heslo bylo nastaveno. Nyní se můžete přihlásit <a href=\"%(login_url)s\"></a>"
 
 #: documents/templates/registration/password_reset_confirm.html:14
 msgid "Paperless-ngx reset password confirmation"
@@ -856,7 +856,7 @@ msgstr ""
 
 #: documents/templates/registration/password_reset_confirm.html:42
 msgid "Set a new password."
-msgstr ""
+msgstr "Zadejte nové heslo."
 
 #: documents/templates/registration/password_reset_confirm.html:46
 msgid "Passwords did not match or too weak. Try again."

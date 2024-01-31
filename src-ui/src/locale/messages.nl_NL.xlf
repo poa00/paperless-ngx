@@ -3893,7 +3893,7 @@
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
           <context context-type="linenumber">173</context>
         </context-group>
-        <target state="translated">Toepassen op documentne die overeenkomen met dit pad. Wildcards met * zijn toegestaan. Hoofdletters worden genormaliseerd.&lt;/a&gt;</target>
+        <target state="translated">Toepassen op documenten die overeenkomen met dit pad. Wildcards met * zijn toegestaan. Hoofdletters worden genormaliseerd.&lt;/a&gt;</target>
       </trans-unit>
       <trans-unit id="7468453896129193641" datatype="html">
         <source>Filter mail rule</source>

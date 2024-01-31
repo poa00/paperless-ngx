@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: paperless-ngx\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-05 21:26-0800\n"
-"PO-Revision-Date: 2024-01-21 12:08\n"
+"PO-Revision-Date: 2024-01-30 12:08\n"
 "Last-Translator: \n"
 "Language-Team: Japanese\n"
 "Language: ja_JP\n"
@@ -1059,11 +1059,11 @@ msgstr "Ghostscript 色変換ストラテジーの設定"
 
 #: paperless/models.py:165
 msgid "Adds additional user arguments for OCRMyPDF"
-msgstr ""
+msgstr "OCRMyPDF への追加のユーザー引数を追加"
 
 #: paperless/models.py:170
 msgid "paperless application settings"
-msgstr ""
+msgstr "Paperless アプリケーションの設定"
 
 #: paperless/settings.py:601
 msgid "English (US)"
@@ -1195,39 +1195,39 @@ msgstr "Paperless-ngx の管理"
 
 #: paperless_mail/admin.py:41
 msgid "Authentication"
-msgstr ""
+msgstr "認証"
 
 #: paperless_mail/admin.py:44
 msgid "Advanced settings"
-msgstr ""
+msgstr "高度な設定"
 
 #: paperless_mail/admin.py:60
 msgid "Filter"
-msgstr ""
+msgstr "フィルター"
 
 #: paperless_mail/admin.py:63
 msgid "Paperless will only process mails that match ALL of the filters given below."
-msgstr ""
+msgstr "Paperless は以下のフィルタにマッチするメールのみを処理します"
 
 #: paperless_mail/admin.py:80
 msgid "Actions"
-msgstr ""
+msgstr "アクション"
 
 #: paperless_mail/admin.py:83
 msgid "The action applied to the mail. This action is only performed when the mail body or attachments were consumed from the mail."
-msgstr ""
+msgstr "メールに適用されるアクション。このアクションは、メール本文または添付ファイルがメールから取り込まれた場合にのみ実行されます。"
 
 #: paperless_mail/admin.py:91
 msgid "Metadata"
-msgstr ""
+msgstr "メタデータ"
 
 #: paperless_mail/admin.py:94
 msgid "Assign metadata to documents consumed from this rule automatically. If you do not assign tags, types or correspondents here, paperless will still process all matching rules that you have defined."
-msgstr ""
+msgstr "このルールから使用されるドキュメントに自動的にメタデータを割り当てます。ここでタグ、タイプ、担当者を割り当てなかった場合でも、Paperless は定義済みのすべてのマッチングルールを処理します。"
 
 #: paperless_mail/apps.py:11
 msgid "Paperless mail"
-msgstr ""
+msgstr "Paperless メール"
 
 #: paperless_mail/models.py:10
 msgid "mail account"
@@ -1243,11 +1243,11 @@ msgstr "暗号化なし"
 
 #: paperless_mail/models.py:15
 msgid "Use SSL"
-msgstr ""
+msgstr "SSL を使用"
 
 #: paperless_mail/models.py:16
 msgid "Use STARTTLS"
-msgstr ""
+msgstr "STARTTLS を使用"
 
 #: paperless_mail/models.py:20
 msgid "IMAP server"
@@ -1259,7 +1259,7 @@ msgstr "IMAP ポート番号"
 
 #: paperless_mail/models.py:27
 msgid "This is usually 143 for unencrypted and STARTTLS connections, and 993 for SSL connections."
-msgstr ""
+msgstr "通常、暗号化されていない接続や STARTTLS 接続では 143、SSL 接続では 993 です。"
 
 #: paperless_mail/models.py:33
 msgid "IMAP security"
@@ -1275,7 +1275,7 @@ msgstr "パスワード"
 
 #: paperless_mail/models.py:42
 msgid "Is token authentication"
-msgstr ""
+msgstr "トークン認証"
 
 #: paperless_mail/models.py:45
 msgid "character set"
@@ -1283,7 +1283,7 @@ msgstr "文字セット"
 
 #: paperless_mail/models.py:49
 msgid "The character set to use when communicating with the mail server, such as 'UTF-8' or 'US-ASCII'."
-msgstr ""
+msgstr "'UTF-8' や 'US-ASCII' など、メールサーバーとの通信に使用する文字セット"
 
 #: paperless_mail/models.py:60
 msgid "mail rule"
@@ -1295,19 +1295,19 @@ msgstr "メールルール"
 
 #: paperless_mail/models.py:64 paperless_mail/models.py:72
 msgid "Only process attachments."
-msgstr ""
+msgstr "添付ファイルのみを処理."
 
 #: paperless_mail/models.py:65
 msgid "Process full Mail (with embedded attachments in file) as .eml"
-msgstr ""
+msgstr ".eml としてメール全体 (添付ファイルを含む) を処理"
 
 #: paperless_mail/models.py:67
 msgid "Process full Mail (with embedded attachments in file) as .eml + process attachments as separate documents"
-msgstr ""
+msgstr ".eml としてメール全体 (添付ファイルを含む) を処理 + 添付ファイルを別のドキュメントとして処理"
 
 #: paperless_mail/models.py:73
 msgid "Process all files, including 'inline' attachments."
-msgstr ""
+msgstr "インライン添付ファイルを含むすべてのファイルを処理"
 
 #: paperless_mail/models.py:76
 msgid "Delete"

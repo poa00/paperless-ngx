@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: paperless-ngx\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-05 21:26-0800\n"
-"PO-Revision-Date: 2024-01-19 12:09\n"
+"PO-Revision-Date: 2024-01-31 12:08\n"
 "Last-Translator: \n"
 "Language-Team: Russian\n"
 "Language: ru_RU\n"
@@ -613,19 +613,19 @@ msgstr ""
 
 #: documents/models.py:902
 msgid "Consumption Started"
-msgstr ""
+msgstr "Обработка документа начата"
 
 #: documents/models.py:903
 msgid "Document Added"
-msgstr ""
+msgstr "Документ добавлен"
 
 #: documents/models.py:904
 msgid "Document Updated"
-msgstr ""
+msgstr "Документ обновлен"
 
 #: documents/models.py:907
 msgid "Consume Folder"
-msgstr ""
+msgstr "Обработка из папки"
 
 #: documents/models.py:908
 msgid "Api Upload"
@@ -681,7 +681,7 @@ msgstr ""
 
 #: documents/models.py:997
 msgid "Assignment"
-msgstr ""
+msgstr "Задание"
 
 #: documents/models.py:1000
 msgid "Workflow Action Type"
@@ -689,7 +689,7 @@ msgstr ""
 
 #: documents/models.py:1006
 msgid "assign title"
-msgstr ""
+msgstr "присвоить заголовок"
 
 #: documents/models.py:1011
 msgid "Assign a document title, can include some placeholders, see documentation."
