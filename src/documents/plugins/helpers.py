@@ -1,11 +1,11 @@
 import enum
 from typing import TYPE_CHECKING
-from typing import Optional
-from typing import Union
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
-from channels_redis.pubsub import RedisPubSubChannelLayer
+
+if TYPE_CHECKING:
+    from channels_redis.pubsub import RedisPubSubChannelLayer
 
 
 class ProgressStatusOptions(str, enum.Enum):
@@ -21,9 +21,9 @@ class ProgressManager:
     of the open/close of the layer to ensure messages go out and everything is cleaned up
     """
 
-    def __init__(self, filename: str, task_id: Optional[str] = None) -> None:
+    def __init__(self, filename: str, task_id: str | None = None) -> None:
         self.filename = filename
-        self._channel: Optional[RedisPubSubChannelLayer] = None
+        self._channel: RedisPubSubChannelLayer | None = None
         self.task_id = task_id
 
     def __enter__(self):
@@ -55,7 +55,7 @@ class ProgressManager:
         message: str,
         current_progress: int,
         max_progress: int,
-        extra_args: Optional[dict[str, Union[str, int]]] = None,
+        extra_args: dict[str, str | int | None] | None = None,
     ) -> None:
         # Ensure the layer is open
         self.open()

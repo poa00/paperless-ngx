@@ -15,8 +15,6 @@ from documents.models import Workflow
 from documents.models import WorkflowAction
 from documents.models import WorkflowTrigger
 from documents.tests.utils import DirectoriesMixin
-from paperless_mail.models import MailAccount
-from paperless_mail.models import MailRule
 
 
 class TestApiWorkflows(DirectoriesMixin, APITestCase):
@@ -204,6 +202,19 @@ class TestApiWorkflows(DirectoriesMixin, APITestCase):
                             "assign_change_groups": [self.group1.id],
                             "assign_custom_fields": [self.cf2.id],
                         },
+                        {
+                            "type": WorkflowAction.WorkflowActionType.REMOVAL,
+                            "remove_tags": [self.t3.id],
+                            "remove_document_types": [self.dt.id],
+                            "remove_correspondents": [self.c.id],
+                            "remove_storage_paths": [self.sp.id],
+                            "remove_custom_fields": [self.cf1.id],
+                            "remove_owners": [self.user2.id],
+                            "remove_view_users": [self.user3.id],
+                            "remove_change_users": [self.user3.id],
+                            "remove_view_groups": [self.group1.id],
+                            "remove_change_groups": [self.group1.id],
+                        },
                     ],
                 },
             ),
@@ -344,56 +355,6 @@ class TestApiWorkflows(DirectoriesMixin, APITestCase):
         self.assertEqual(trigger2.filter_path, "*/test/*")
         self.assertIsNone(trigger2.filter_filename)
 
-    def test_api_create_workflow_trigger_with_mailrule(self):
-        """
-        GIVEN:
-            - API request to create a workflow trigger with a mail rule but no MailFetch source
-        WHEN:
-            - API is called
-        THEN:
-            - New trigger is created with MailFetch as source
-        """
-        account1 = MailAccount.objects.create(
-            name="Email1",
-            username="username1",
-            password="password1",
-            imap_server="server.example.com",
-            imap_port=443,
-            imap_security=MailAccount.ImapSecurity.SSL,
-            character_set="UTF-8",
-        )
-        rule1 = MailRule.objects.create(
-            name="Rule1",
-            account=account1,
-            folder="INBOX",
-            filter_from="from@example.com",
-            filter_to="someone@somewhere.com",
-            filter_subject="subject",
-            filter_body="body",
-            filter_attachment_filename_include="file.pdf",
-            maximum_age=30,
-            action=MailRule.MailAction.MARK_READ,
-            assign_title_from=MailRule.TitleSource.FROM_SUBJECT,
-            assign_correspondent_from=MailRule.CorrespondentSource.FROM_NOTHING,
-            order=0,
-            attachment_type=MailRule.AttachmentProcessing.ATTACHMENTS_ONLY,
-        )
-        response = self.client.post(
-            self.ENDPOINT_TRIGGERS,
-            json.dumps(
-                {
-                    "type": WorkflowTrigger.WorkflowTriggerType.CONSUMPTION,
-                    "sources": [DocumentSource.ApiUpload],
-                    "filter_mailrule": rule1.pk,
-                },
-            ),
-            content_type="application/json",
-        )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(WorkflowTrigger.objects.count(), 2)
-        trigger = WorkflowTrigger.objects.get(id=response.data["id"])
-        self.assertEqual(trigger.sources, [int(DocumentSource.MailFetch).__str__()])
-
     def test_api_update_workflow_nested_triggers_actions(self):
         """
         GIVEN:
@@ -472,3 +433,158 @@ class TestApiWorkflows(DirectoriesMixin, APITestCase):
         self.assertNotEqual(workflow.triggers.first().id, self.trigger.id)
         self.assertEqual(WorkflowAction.objects.all().count(), 1)
         self.assertNotEqual(workflow.actions.first().id, self.action.id)
+
+    def test_email_action_validation(self):
+        """
+        GIVEN:
+            - API request to create a workflow with an email action
+        WHEN:
+            - API is called
+        THEN:
+            - Correct HTTP response
+        """
+        response = self.client.post(
+            self.ENDPOINT,
+            json.dumps(
+                {
+                    "name": "Workflow 2",
+                    "order": 1,
+                    "triggers": [
+                        {
+                            "type": WorkflowTrigger.WorkflowTriggerType.CONSUMPTION,
+                            "sources": [DocumentSource.ApiUpload],
+                            "filter_filename": "*",
+                        },
+                    ],
+                    "actions": [
+                        {
+                            "type": WorkflowAction.WorkflowActionType.EMAIL,
+                        },
+                    ],
+                },
+            ),
+            content_type="application/json",
+        )
+        # Notification action requires to, subject and body
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        response = self.client.post(
+            self.ENDPOINT,
+            json.dumps(
+                {
+                    "name": "Workflow 2",
+                    "order": 1,
+                    "triggers": [
+                        {
+                            "type": WorkflowTrigger.WorkflowTriggerType.CONSUMPTION,
+                            "sources": [DocumentSource.ApiUpload],
+                            "filter_filename": "*",
+                        },
+                    ],
+                    "actions": [
+                        {
+                            "type": WorkflowAction.WorkflowActionType.EMAIL,
+                            "email": {
+                                "subject": "Subject",
+                                "body": "Body",
+                            },
+                        },
+                    ],
+                },
+            ),
+            content_type="application/json",
+        )
+        # Notification action requires destination emails or url
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        response = self.client.post(
+            self.ENDPOINT,
+            json.dumps(
+                {
+                    "name": "Workflow 2",
+                    "order": 1,
+                    "triggers": [
+                        {
+                            "type": WorkflowTrigger.WorkflowTriggerType.CONSUMPTION,
+                            "sources": [DocumentSource.ApiUpload],
+                            "filter_filename": "*",
+                        },
+                    ],
+                    "actions": [
+                        {
+                            "type": WorkflowAction.WorkflowActionType.EMAIL,
+                            "email": {
+                                "subject": "Subject",
+                                "body": "Body",
+                                "to": "me@example.com",
+                                "include_document": False,
+                            },
+                        },
+                    ],
+                },
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_webhook_action_validation(self):
+        """
+        GIVEN:
+            - API request to create a workflow with a notification action
+        WHEN:
+            - API is called
+        THEN:
+            - Correct HTTP response
+        """
+        response = self.client.post(
+            self.ENDPOINT,
+            json.dumps(
+                {
+                    "name": "Workflow 2",
+                    "order": 1,
+                    "triggers": [
+                        {
+                            "type": WorkflowTrigger.WorkflowTriggerType.CONSUMPTION,
+                            "sources": [DocumentSource.ApiUpload],
+                            "filter_filename": "*",
+                        },
+                    ],
+                    "actions": [
+                        {
+                            "type": WorkflowAction.WorkflowActionType.WEBHOOK,
+                        },
+                    ],
+                },
+            ),
+            content_type="application/json",
+        )
+        # Notification action requires url
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        response = self.client.post(
+            self.ENDPOINT,
+            json.dumps(
+                {
+                    "name": "Workflow 2",
+                    "order": 1,
+                    "triggers": [
+                        {
+                            "type": WorkflowTrigger.WorkflowTriggerType.CONSUMPTION,
+                            "sources": [DocumentSource.ApiUpload],
+                            "filter_filename": "*",
+                        },
+                    ],
+                    "actions": [
+                        {
+                            "type": WorkflowAction.WorkflowActionType.WEBHOOK,
+                            "webhook": {
+                                "url": "https://example.com",
+                                "include_document": False,
+                            },
+                        },
+                    ],
+                },
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)

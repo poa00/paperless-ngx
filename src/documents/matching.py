@@ -1,7 +1,6 @@
 import logging
 import re
 from fnmatch import fnmatch
-from typing import Union
 
 from documents.classifier import DocumentClassifier
 from documents.data_models import ConsumableDocument
@@ -20,7 +19,7 @@ logger = logging.getLogger("paperless.matching")
 
 
 def log_reason(
-    matching_model: Union[MatchingModel, WorkflowTrigger],
+    matching_model: MatchingModel | WorkflowTrigger,
     document: Document,
     reason: str,
 ):
@@ -258,7 +257,9 @@ def consumable_document_matches_workflow(
     reason = ""
 
     # Document source vs trigger source
-    if document.source not in [int(x) for x in list(trigger.sources)]:
+    if len(trigger.sources) > 0 and document.source not in [
+        int(x) for x in list(trigger.sources)
+    ]:
         reason = (
             f"Document source {document.source.name} not in"
             f" {[DocumentSource(int(x)).name for x in trigger.sources]}",
@@ -267,8 +268,7 @@ def consumable_document_matches_workflow(
 
     # Document mail rule vs trigger mail rule
     if (
-        document.mailrule_id is not None
-        and trigger.filter_mailrule is not None
+        trigger.filter_mailrule is not None
         and document.mailrule_id != trigger.filter_mailrule.pk
     ):
         reason = (
@@ -385,7 +385,7 @@ def existing_document_matches_workflow(
 
 
 def document_matches_workflow(
-    document: Union[ConsumableDocument, Document],
+    document: ConsumableDocument | Document,
     workflow: Workflow,
     trigger_type: WorkflowTrigger.WorkflowTriggerType,
 ) -> bool:
@@ -409,6 +409,7 @@ def document_matches_workflow(
             elif (
                 trigger_type == WorkflowTrigger.WorkflowTriggerType.DOCUMENT_ADDED
                 or trigger_type == WorkflowTrigger.WorkflowTriggerType.DOCUMENT_UPDATED
+                or trigger_type == WorkflowTrigger.WorkflowTriggerType.SCHEDULED
             ):
                 trigger_matched, reason = existing_document_matches_workflow(
                     document,

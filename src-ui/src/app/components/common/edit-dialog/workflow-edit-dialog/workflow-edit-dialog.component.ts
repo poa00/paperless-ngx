@@ -1,37 +1,62 @@
+import {
+  CdkDragDrop,
+  DragDropModule,
+  moveItemInArray,
+} from '@angular/cdk/drag-drop'
+import { NgTemplateOutlet } from '@angular/common'
 import { Component, OnInit } from '@angular/core'
-import { FormGroup, FormControl, FormArray } from '@angular/forms'
-import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap'
+import {
+  FormArray,
+  FormControl,
+  FormGroup,
+  FormsModule,
+  ReactiveFormsModule,
+} from '@angular/forms'
+import { NgbAccordionModule, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap'
+import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
 import { first } from 'rxjs'
-import { Workflow } from 'src/app/data/workflow'
 import { Correspondent } from 'src/app/data/correspondent'
+import { CustomField, CustomFieldDataType } from 'src/app/data/custom-field'
 import { DocumentType } from 'src/app/data/document-type'
-import { StoragePath } from 'src/app/data/storage-path'
-import { WorkflowService } from 'src/app/services/rest/workflow.service'
-import { CorrespondentService } from 'src/app/services/rest/correspondent.service'
-import { DocumentTypeService } from 'src/app/services/rest/document-type.service'
-import { StoragePathService } from 'src/app/services/rest/storage-path.service'
-import { UserService } from 'src/app/services/rest/user.service'
-import { SettingsService } from 'src/app/services/settings.service'
-import { EditDialogComponent } from '../edit-dialog.component'
-import { MailRuleService } from 'src/app/services/rest/mail-rule.service'
 import { MailRule } from 'src/app/data/mail-rule'
-import { CustomFieldsService } from 'src/app/services/rest/custom-fields.service'
-import { CustomField } from 'src/app/data/custom-field'
-import {
-  DocumentSource,
-  WorkflowTrigger,
-  WorkflowTriggerType,
-} from 'src/app/data/workflow-trigger'
-import {
-  WorkflowAction,
-  WorkflowActionType,
-} from 'src/app/data/workflow-action'
-import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop'
 import {
   MATCHING_ALGORITHMS,
   MATCH_AUTO,
   MATCH_NONE,
 } from 'src/app/data/matching-model'
+import { StoragePath } from 'src/app/data/storage-path'
+import { SETTINGS_KEYS } from 'src/app/data/ui-settings'
+import { Workflow } from 'src/app/data/workflow'
+import {
+  WorkflowAction,
+  WorkflowActionType,
+} from 'src/app/data/workflow-action'
+import {
+  DocumentSource,
+  ScheduleDateField,
+  WorkflowTrigger,
+  WorkflowTriggerType,
+} from 'src/app/data/workflow-trigger'
+import { CorrespondentService } from 'src/app/services/rest/correspondent.service'
+import { CustomFieldsService } from 'src/app/services/rest/custom-fields.service'
+import { DocumentTypeService } from 'src/app/services/rest/document-type.service'
+import { MailRuleService } from 'src/app/services/rest/mail-rule.service'
+import { StoragePathService } from 'src/app/services/rest/storage-path.service'
+import { UserService } from 'src/app/services/rest/user.service'
+import { WorkflowService } from 'src/app/services/rest/workflow.service'
+import { SettingsService } from 'src/app/services/settings.service'
+import { ConfirmButtonComponent } from '../../confirm-button/confirm-button.component'
+import { CheckComponent } from '../../input/check/check.component'
+import { EntriesComponent } from '../../input/entries/entries.component'
+import { NumberComponent } from '../../input/number/number.component'
+import { PermissionsGroupComponent } from '../../input/permissions/permissions-group/permissions-group.component'
+import { PermissionsUserComponent } from '../../input/permissions/permissions-user/permissions-user.component'
+import { SelectComponent } from '../../input/select/select.component'
+import { SwitchComponent } from '../../input/switch/switch.component'
+import { TagsComponent } from '../../input/tags/tags.component'
+import { TextComponent } from '../../input/text/text.component'
+import { TextAreaComponent } from '../../input/textarea/textarea.component'
+import { EditDialogComponent } from '../edit-dialog.component'
 
 export const DOCUMENT_SOURCE_OPTIONS = [
   {
@@ -48,6 +73,25 @@ export const DOCUMENT_SOURCE_OPTIONS = [
   },
 ]
 
+export const SCHEDULE_DATE_FIELD_OPTIONS = [
+  {
+    id: ScheduleDateField.Added,
+    name: $localize`Added`,
+  },
+  {
+    id: ScheduleDateField.Created,
+    name: $localize`Created`,
+  },
+  {
+    id: ScheduleDateField.Modified,
+    name: $localize`Modified`,
+  },
+  {
+    id: ScheduleDateField.CustomField,
+    name: $localize`Custom Field`,
+  },
+]
+
 export const WORKFLOW_TYPE_OPTIONS = [
   {
     id: WorkflowTriggerType.Consumption,
@@ -61,12 +105,28 @@ export const WORKFLOW_TYPE_OPTIONS = [
     id: WorkflowTriggerType.DocumentUpdated,
     name: $localize`Document Updated`,
   },
+  {
+    id: WorkflowTriggerType.Scheduled,
+    name: $localize`Scheduled`,
+  },
 ]
 
 export const WORKFLOW_ACTION_OPTIONS = [
   {
     id: WorkflowActionType.Assignment,
     name: $localize`Assignment`,
+  },
+  {
+    id: WorkflowActionType.Removal,
+    name: $localize`Removal`,
+  },
+  {
+    id: WorkflowActionType.Email,
+    name: $localize`Email`,
+  },
+  {
+    id: WorkflowActionType.Webhook,
+    name: $localize`Webhook`,
   },
 ]
 
@@ -78,12 +138,32 @@ const TRIGGER_MATCHING_ALGORITHMS = MATCHING_ALGORITHMS.filter(
   selector: 'pngx-workflow-edit-dialog',
   templateUrl: './workflow-edit-dialog.component.html',
   styleUrls: ['./workflow-edit-dialog.component.scss'],
+  imports: [
+    CheckComponent,
+    EntriesComponent,
+    SwitchComponent,
+    NumberComponent,
+    TextComponent,
+    SelectComponent,
+    TextAreaComponent,
+    TagsComponent,
+    PermissionsGroupComponent,
+    PermissionsUserComponent,
+    ConfirmButtonComponent,
+    FormsModule,
+    ReactiveFormsModule,
+    NgbAccordionModule,
+    NgTemplateOutlet,
+    DragDropModule,
+    NgxBootstrapIconsModule,
+  ],
 })
 export class WorkflowEditDialogComponent
   extends EditDialogComponent<Workflow>
   implements OnInit
 {
   public WorkflowTriggerType = WorkflowTriggerType
+  public WorkflowActionType = WorkflowActionType
 
   templates: Workflow[]
   correspondents: Correspondent[]
@@ -91,8 +171,11 @@ export class WorkflowEditDialogComponent
   storagePaths: StoragePath[]
   mailRules: MailRule[]
   customFields: CustomField[]
+  dateCustomFields: CustomField[]
 
   expandedItem: number = null
+
+  private allowedActionTypes = []
 
   constructor(
     service: WorkflowService,
@@ -130,7 +213,12 @@ export class WorkflowEditDialogComponent
     customFieldsService
       .listAll()
       .pipe(first())
-      .subscribe((result) => (this.customFields = result.results))
+      .subscribe((result) => {
+        this.customFields = result.results
+        this.dateCustomFields = this.customFields?.filter(
+          (f) => f.data_type === CustomFieldDataType.Date
+        )
+      })
   }
 
   getCreateTitle() {
@@ -159,6 +247,129 @@ export class WorkflowEditDialogComponent
   ngOnInit(): void {
     super.ngOnInit()
     this.updateAllTriggerActionFields()
+    this.objectForm.valueChanges.subscribe(
+      this.checkRemovalActionFields.bind(this)
+    )
+    this.checkRemovalActionFields(this.objectForm.value)
+    this.allowedActionTypes = this.settingsService.get(
+      SETTINGS_KEYS.EMAIL_ENABLED
+    )
+      ? WORKFLOW_ACTION_OPTIONS
+      : WORKFLOW_ACTION_OPTIONS.filter((a) => a.id !== WorkflowActionType.Email)
+  }
+
+  private checkRemovalActionFields(formWorkflow: Workflow) {
+    formWorkflow.actions
+      .filter((action) => action.type === WorkflowActionType.Removal)
+      .forEach((action, i) => {
+        if (action.remove_all_tags) {
+          this.actionFields
+            .at(i)
+            .get('remove_tags')
+            .disable({ emitEvent: false })
+        } else {
+          this.actionFields
+            .at(i)
+            .get('remove_tags')
+            .enable({ emitEvent: false })
+        }
+
+        if (action.remove_all_document_types) {
+          this.actionFields
+            .at(i)
+            .get('remove_document_types')
+            .disable({ emitEvent: false })
+        } else {
+          this.actionFields
+            .at(i)
+            .get('remove_document_types')
+            .enable({ emitEvent: false })
+        }
+
+        if (action.remove_all_correspondents) {
+          this.actionFields
+            .at(i)
+            .get('remove_correspondents')
+            .disable({ emitEvent: false })
+        } else {
+          this.actionFields
+            .at(i)
+            .get('remove_correspondents')
+            .enable({ emitEvent: false })
+        }
+
+        if (action.remove_all_storage_paths) {
+          this.actionFields
+            .at(i)
+            .get('remove_storage_paths')
+            .disable({ emitEvent: false })
+        } else {
+          this.actionFields
+            .at(i)
+            .get('remove_storage_paths')
+            .enable({ emitEvent: false })
+        }
+
+        if (action.remove_all_custom_fields) {
+          this.actionFields
+            .at(i)
+            .get('remove_custom_fields')
+            .disable({ emitEvent: false })
+        } else {
+          this.actionFields
+            .at(i)
+            .get('remove_custom_fields')
+            .enable({ emitEvent: false })
+        }
+
+        if (action.remove_all_owners) {
+          this.actionFields
+            .at(i)
+            .get('remove_owners')
+            .disable({ emitEvent: false })
+        } else {
+          this.actionFields
+            .at(i)
+            .get('remove_owners')
+            .enable({ emitEvent: false })
+        }
+
+        if (action.remove_all_permissions) {
+          this.actionFields
+            .at(i)
+            .get('remove_view_users')
+            .disable({ emitEvent: false })
+          this.actionFields
+            .at(i)
+            .get('remove_view_groups')
+            .disable({ emitEvent: false })
+          this.actionFields
+            .at(i)
+            .get('remove_change_users')
+            .disable({ emitEvent: false })
+          this.actionFields
+            .at(i)
+            .get('remove_change_groups')
+            .disable({ emitEvent: false })
+        } else {
+          this.actionFields
+            .at(i)
+            .get('remove_view_users')
+            .enable({ emitEvent: false })
+          this.actionFields
+            .at(i)
+            .get('remove_view_groups')
+            .enable({ emitEvent: false })
+          this.actionFields
+            .at(i)
+            .get('remove_change_users')
+            .enable({ emitEvent: false })
+          this.actionFields
+            .at(i)
+            .get('remove_change_groups')
+            .enable({ emitEvent: false })
+        }
+      })
   }
 
   get triggerFields(): FormArray {
@@ -191,6 +402,15 @@ export class WorkflowEditDialogComponent
         filter_has_document_type: new FormControl(
           trigger.filter_has_document_type
         ),
+        schedule_offset_days: new FormControl(trigger.schedule_offset_days),
+        schedule_is_recurring: new FormControl(trigger.schedule_is_recurring),
+        schedule_recurring_interval_days: new FormControl(
+          trigger.schedule_recurring_interval_days
+        ),
+        schedule_date_field: new FormControl(trigger.schedule_date_field),
+        schedule_date_custom_field: new FormControl(
+          trigger.schedule_date_custom_field
+        ),
       }),
       { emitEvent }
     )
@@ -215,6 +435,48 @@ export class WorkflowEditDialogComponent
         assign_change_users: new FormControl(action.assign_change_users),
         assign_change_groups: new FormControl(action.assign_change_groups),
         assign_custom_fields: new FormControl(action.assign_custom_fields),
+        remove_tags: new FormControl(action.remove_tags),
+        remove_all_tags: new FormControl(action.remove_all_tags),
+        remove_document_types: new FormControl(action.remove_document_types),
+        remove_all_document_types: new FormControl(
+          action.remove_all_document_types
+        ),
+        remove_correspondents: new FormControl(action.remove_correspondents),
+        remove_all_correspondents: new FormControl(
+          action.remove_all_correspondents
+        ),
+        remove_storage_paths: new FormControl(action.remove_storage_paths),
+        remove_all_storage_paths: new FormControl(
+          action.remove_all_storage_paths
+        ),
+        remove_owners: new FormControl(action.remove_owners),
+        remove_all_owners: new FormControl(action.remove_all_owners),
+        remove_view_users: new FormControl(action.remove_view_users),
+        remove_view_groups: new FormControl(action.remove_view_groups),
+        remove_change_users: new FormControl(action.remove_change_users),
+        remove_change_groups: new FormControl(action.remove_change_groups),
+        remove_all_permissions: new FormControl(action.remove_all_permissions),
+        remove_custom_fields: new FormControl(action.remove_custom_fields),
+        remove_all_custom_fields: new FormControl(
+          action.remove_all_custom_fields
+        ),
+        email: new FormGroup({
+          id: new FormControl(action.email?.id),
+          subject: new FormControl(action.email?.subject),
+          body: new FormControl(action.email?.body),
+          to: new FormControl(action.email?.to),
+          include_document: new FormControl(!!action.email?.include_document),
+        }),
+        webhook: new FormGroup({
+          id: new FormControl(action.webhook?.id),
+          url: new FormControl(action.webhook?.url),
+          use_params: new FormControl(action.webhook?.use_params),
+          as_json: new FormControl(action.webhook?.as_json),
+          params: new FormControl(action.webhook?.params),
+          body: new FormControl(action.webhook?.body),
+          headers: new FormControl(action.webhook?.headers),
+          include_document: new FormControl(!!action.webhook?.include_document),
+        }),
       }),
       { emitEvent }
     )
@@ -240,6 +502,10 @@ export class WorkflowEditDialogComponent
     return WORKFLOW_TYPE_OPTIONS
   }
 
+  get scheduleDateFieldOptions() {
+    return SCHEDULE_DATE_FIELD_OPTIONS
+  }
+
   getTriggerTypeOptionName(type: WorkflowTriggerType): string {
     return this.triggerTypeOptions.find((t) => t.id === type)?.name ?? ''
   }
@@ -260,13 +526,18 @@ export class WorkflowEditDialogComponent
       matching_algorithm: MATCH_NONE,
       match: '',
       is_insensitive: true,
+      schedule_offset_days: 0,
+      schedule_is_recurring: false,
+      schedule_recurring_interval_days: 1,
+      schedule_date_field: ScheduleDateField.Added,
+      schedule_date_custom_field: null,
     }
     this.object.triggers.push(trigger)
     this.createTriggerField(trigger)
   }
 
   get actionTypeOptions() {
-    return WORKFLOW_ACTION_OPTIONS
+    return this.allowedActionTypes
   }
 
   getActionTypeOptionName(type: WorkflowActionType): string {
@@ -290,6 +561,40 @@ export class WorkflowEditDialogComponent
       assign_change_users: [],
       assign_change_groups: [],
       assign_custom_fields: [],
+      remove_tags: [],
+      remove_all_tags: false,
+      remove_document_types: [],
+      remove_all_document_types: false,
+      remove_correspondents: [],
+      remove_all_correspondents: false,
+      remove_storage_paths: [],
+      remove_all_storage_paths: false,
+      remove_owners: [],
+      remove_all_owners: false,
+      remove_view_users: [],
+      remove_view_groups: [],
+      remove_change_users: [],
+      remove_change_groups: [],
+      remove_all_permissions: false,
+      remove_custom_fields: [],
+      remove_all_custom_fields: false,
+      email: {
+        id: null,
+        subject: null,
+        body: null,
+        to: null,
+        include_document: false,
+      },
+      webhook: {
+        id: null,
+        url: null,
+        use_params: true,
+        as_json: false,
+        params: null,
+        body: null,
+        headers: null,
+        include_document: false,
+      },
     }
     this.object.actions.push(action)
     this.createActionField(action)
@@ -316,5 +621,22 @@ export class WorkflowEditDialogComponent
     this.actionFields.insert(event.currentIndex, actionField)
     // removing id will effectively re-create the actions in this order
     this.object.actions.forEach((a) => (a.id = null))
+    this.actionFields.controls.forEach((c) =>
+      c.get('id').setValue(null, { emitEvent: false })
+    )
+  }
+
+  save(): void {
+    this.objectForm
+      .get('actions')
+      .value.forEach((action: WorkflowAction, i) => {
+        if (action.type !== WorkflowActionType.Webhook) {
+          action.webhook = null
+        }
+        if (action.type !== WorkflowActionType.Email) {
+          action.email = null
+        }
+      })
+    super.save()
   }
 }

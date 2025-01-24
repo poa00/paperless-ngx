@@ -12,6 +12,13 @@ export interface UiSetting {
   default: any
 }
 
+export enum GlobalSearchType {
+  ADVANCED = 'advanced',
+  TITLE_CONTENT = 'title-content',
+}
+
+export const PAPERLESS_GREEN_HEX = '#17541f'
+
 export const SETTINGS_KEYS = {
   LANGUAGE: 'language',
   APP_LOGO: 'app_logo',
@@ -37,6 +44,7 @@ export const SETTINGS_KEYS = {
   NOTIFICATIONS_CONSUMER_SUPPRESS_ON_DASHBOARD:
     'general-settings:notifications:consumer-suppress-on-dashboard',
   NOTES_ENABLED: 'general-settings:notes-enabled',
+  AUDITLOG_ENABLED: 'general-settings:auditlog-enabled',
   SLIM_SIDEBAR: 'general-settings:slim-sidebar',
   UPDATE_CHECKING_ENABLED: 'general-settings:update-checking:enabled',
   UPDATE_CHECKING_BACKEND_SETTING:
@@ -53,6 +61,16 @@ export const SETTINGS_KEYS = {
   DEFAULT_PERMS_VIEW_GROUPS: 'general-settings:permissions:default-view-groups',
   DEFAULT_PERMS_EDIT_USERS: 'general-settings:permissions:default-edit-users',
   DEFAULT_PERMS_EDIT_GROUPS: 'general-settings:permissions:default-edit-groups',
+  DOCUMENT_EDITING_REMOVE_INBOX_TAGS:
+    'general-settings:document-editing:remove-inbox-tags',
+  DOCUMENT_EDITING_OVERLAY_THUMBNAIL:
+    'general-settings:document-editing:overlay-thumbnail',
+  SEARCH_DB_ONLY: 'general-settings:search:db-only',
+  SEARCH_FULL_TYPE: 'general-settings:search:more-link',
+  EMPTY_TRASH_DELAY: 'trash_delay',
+  GMAIL_OAUTH_URL: 'gmail_oauth_url',
+  OUTLOOK_OAUTH_URL: 'outlook_oauth_url',
+  EMAIL_ENABLED: 'email_enabled',
 }
 
 export const SETTINGS: UiSetting[] = [
@@ -142,6 +160,11 @@ export const SETTINGS: UiSetting[] = [
     default: true,
   },
   {
+    key: SETTINGS_KEYS.AUDITLOG_ENABLED,
+    type: 'boolean',
+    default: true,
+  },
+  {
     key: SETTINGS_KEYS.UPDATE_CHECKING_ENABLED,
     type: 'boolean',
     default: false,
@@ -205,5 +228,45 @@ export const SETTINGS: UiSetting[] = [
     key: SETTINGS_KEYS.APP_TITLE,
     type: 'string',
     default: '',
+  },
+  {
+    key: SETTINGS_KEYS.DOCUMENT_EDITING_REMOVE_INBOX_TAGS,
+    type: 'boolean',
+    default: false,
+  },
+  {
+    key: SETTINGS_KEYS.DOCUMENT_EDITING_OVERLAY_THUMBNAIL,
+    type: 'boolean',
+    default: true,
+  },
+  {
+    key: SETTINGS_KEYS.SEARCH_DB_ONLY,
+    type: 'boolean',
+    default: false,
+  },
+  {
+    key: SETTINGS_KEYS.SEARCH_FULL_TYPE,
+    type: 'string',
+    default: GlobalSearchType.TITLE_CONTENT,
+  },
+  {
+    key: SETTINGS_KEYS.EMPTY_TRASH_DELAY,
+    type: 'number',
+    default: 30,
+  },
+  {
+    key: SETTINGS_KEYS.GMAIL_OAUTH_URL,
+    type: 'string',
+    default: null,
+  },
+  {
+    key: SETTINGS_KEYS.OUTLOOK_OAUTH_URL,
+    type: 'string',
+    default: null,
+  },
+  {
+    key: SETTINGS_KEYS.EMAIL_ENABLED,
+    type: 'boolean',
+    default: false,
   },
 ]

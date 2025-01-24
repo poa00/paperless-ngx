@@ -1,7 +1,6 @@
 import abc
 from pathlib import Path
 from typing import Final
-from typing import Optional
 
 from documents.data_models import ConsumableDocument
 from documents.data_models import DocumentMetadataOverrides
@@ -67,7 +66,8 @@ class ConsumeTaskPlugin(abc.ABC):
         self.status_mgr = status_mgr
         self.task_id: Final = task_id
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def able_to_run(self) -> bool:
         """
         Return True if the conditions are met for the plugin to run, False otherwise
@@ -87,7 +87,7 @@ class ConsumeTaskPlugin(abc.ABC):
         """
 
     @abc.abstractmethod
-    def run(self) -> Optional[str]:
+    def run(self) -> str | None:
         """
         The bulk of plugin processing, this does whatever action the plugin is for.
 
