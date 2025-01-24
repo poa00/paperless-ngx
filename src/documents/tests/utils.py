@@ -3,14 +3,13 @@ import tempfile
 import time
 import warnings
 from collections import namedtuple
+from collections.abc import Callable
+from collections.abc import Generator
 from collections.abc import Iterator
 from contextlib import contextmanager
 from os import PathLike
 from pathlib import Path
 from typing import Any
-from typing import Callable
-from typing import Optional
-from typing import Union
 from unittest import mock
 
 import httpx
@@ -21,8 +20,10 @@ from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 from django.test import override_settings
 
+from documents.consumer import ConsumerPlugin
 from documents.data_models import ConsumableDocument
 from documents.data_models import DocumentMetadataOverrides
+from documents.data_models import DocumentSource
 from documents.parsers import ParseError
 from documents.plugins.helpers import ProgressStatusOptions
 
@@ -88,7 +89,7 @@ def paperless_environment():
 
 def util_call_with_backoff(
     method_or_callable: Callable,
-    args: Union[list, tuple],
+    args: list | tuple,
     *,
     skip_on_50x_err=True,
 ) -> tuple[bool, Any]:
@@ -153,10 +154,6 @@ class DirectoriesMixin:
     they are cleaned up on exit
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.dirs = None
-
     def setUp(self) -> None:
         self.dirs = setup_directories()
         super().setUp()
@@ -171,22 +168,22 @@ class FileSystemAssertsMixin:
     Utilities for checks various state information of the file system
     """
 
-    def assertIsFile(self, path: Union[PathLike, str]):
+    def assertIsFile(self, path: PathLike | str):
         self.assertTrue(Path(path).resolve().is_file(), f"File does not exist: {path}")
 
-    def assertIsNotFile(self, path: Union[PathLike, str]):
+    def assertIsNotFile(self, path: PathLike | str):
         self.assertFalse(Path(path).resolve().is_file(), f"File does exist: {path}")
 
-    def assertIsDir(self, path: Union[PathLike, str]):
+    def assertIsDir(self, path: PathLike | str):
         self.assertTrue(Path(path).resolve().is_dir(), f"Dir does not exist: {path}")
 
-    def assertIsNotDir(self, path: Union[PathLike, str]):
+    def assertIsNotDir(self, path: PathLike | str):
         self.assertFalse(Path(path).resolve().is_dir(), f"Dir does exist: {path}")
 
     def assertFilesEqual(
         self,
-        path1: Union[PathLike, str],
-        path2: Union[PathLike, str],
+        path1: PathLike | str,
+        path2: PathLike | str,
     ):
         path1 = Path(path1)
         path2 = Path(path2)
@@ -196,6 +193,16 @@ class FileSystemAssertsMixin:
         hash2 = hashlib.sha256(path2.read_bytes()).hexdigest()
 
         self.assertEqual(hash1, hash2, "File SHA256 mismatch")
+
+    def assertFileCountInDir(self, path: PathLike | str, count: int):
+        path = Path(path).resolve()
+        self.assertTrue(path.is_dir(), f"Path {path} is not a directory")
+        files = [x for x in path.iterdir() if x.is_file()]
+        self.assertEqual(
+            len(files),
+            count,
+            f"Path {path} contains {len(files)} files instead of {count} files",
+        )
 
 
 class ConsumerProgressMixin:
@@ -288,10 +295,8 @@ class TestMigrations(TransactionTestCase):
     def setUp(self):
         super().setUp()
 
-        assert (
-            self.migrate_from and self.migrate_to
-        ), "TestCase '{}' must define migrate_from and migrate_to properties".format(
-            type(self).__name__,
+        assert self.migrate_from and self.migrate_to, (
+            f"TestCase '{type(self).__name__}' must define migrate_from and migrate_to properties"
         )
         self.migrate_from = [(self.app, self.migrate_from)]
         if self.dependencies is not None:
@@ -328,6 +333,30 @@ class SampleDirMixin:
     BARCODE_SAMPLE_DIR = SAMPLE_DIR / "barcodes"
 
 
+class GetConsumerMixin:
+    @contextmanager
+    def get_consumer(
+        self,
+        filepath: Path,
+        overrides: DocumentMetadataOverrides | None = None,
+        source: DocumentSource = DocumentSource.ConsumeFolder,
+    ) -> Generator[ConsumerPlugin, None, None]:
+        # Store this for verification
+        self.status = DummyProgressManager(filepath.name, None)
+        reader = ConsumerPlugin(
+            ConsumableDocument(source, original_file=filepath),
+            overrides or DocumentMetadataOverrides(),
+            self.status,  # type: ignore
+            self.dirs.scratch_dir,
+            "task-id",
+        )
+        reader.setup()
+        try:
+            yield reader
+        finally:
+            reader.cleanup()
+
+
 class DummyProgressManager:
     """
     A dummy handler for progress management that doesn't actually try to
@@ -337,10 +366,9 @@ class DummyProgressManager:
       mock.patch("documents.tasks.ProgressManager", DummyProgressManager)
     """
 
-    def __init__(self, filename: str, task_id: Optional[str] = None) -> None:
+    def __init__(self, filename: str, task_id: str | None = None) -> None:
         self.filename = filename
         self.task_id = task_id
-        print("hello world")
         self.payloads = []
 
     def __enter__(self):
@@ -362,7 +390,7 @@ class DummyProgressManager:
         message: str,
         current_progress: int,
         max_progress: int,
-        extra_args: Optional[dict[str, Union[str, int]]] = None,
+        extra_args: dict[str, str | int] | None = None,
     ) -> None:
         # Ensure the layer is open
         self.open()

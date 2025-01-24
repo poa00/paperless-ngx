@@ -1,10 +1,8 @@
 import os
 import re
-import subprocess
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import Optional
 
 from django.conf import settings
 from PIL import Image
@@ -12,6 +10,8 @@ from PIL import Image
 from documents.parsers import DocumentParser
 from documents.parsers import ParseError
 from documents.parsers import make_thumbnail_from_pdf
+from documents.utils import maybe_override_pixel_limit
+from documents.utils import run_subprocess
 from paperless.config import OcrConfig
 from paperless.models import ArchiveFileChoices
 from paperless.models import CleanChoices
@@ -40,6 +40,20 @@ class RasterisedDocumentParser(DocumentParser):
         """
         return OcrConfig()
 
+    def get_page_count(self, document_path, mime_type):
+        page_count = None
+        if mime_type == "application/pdf":
+            try:
+                import pikepdf
+
+                with pikepdf.Pdf.open(document_path) as pdf:
+                    page_count = len(pdf.pages)
+            except Exception as e:
+                self.log.warning(
+                    f"Unable to determine PDF page count {document_path}: {e}",
+                )
+        return page_count
+
     def extract_metadata(self, document_path, mime_type):
         result = []
         if mime_type == "application/pdf":
@@ -55,11 +69,21 @@ class RasterisedDocumentParser(DocumentParser):
                 value = str(value)
                 try:
                     m = namespace_pattern.match(key)
+                    if m is None:  # pragma: no cover
+                        continue
+                    namespace = m.group(1)
+                    key_value = m.group(2)
+                    try:
+                        namespace.encode("utf-8")
+                        key_value.encode("utf-8")
+                    except UnicodeEncodeError as e:  # pragma: no cover
+                        self.log.debug(f"Skipping metadata key {key}: {e}")
+                        continue
                     result.append(
                         {
-                            "namespace": m.group(1),
-                            "prefix": meta.REVERSE_NS[m.group(1)],
-                            "key": m.group(2),
+                            "namespace": namespace,
+                            "prefix": meta.REVERSE_NS[namespace],
+                            "key": key_value,
                             "value": value,
                         },
                     )
@@ -92,7 +116,7 @@ class RasterisedDocumentParser(DocumentParser):
 
     def remove_alpha(self, image_path: str) -> Path:
         no_alpha_image = Path(self.tempdir) / "image-no-alpha"
-        subprocess.run(
+        run_subprocess(
             [
                 settings.CONVERT_BINARY,
                 "-alpha",
@@ -100,10 +124,11 @@ class RasterisedDocumentParser(DocumentParser):
                 image_path,
                 no_alpha_image,
             ],
+            logger=self.log,
         )
         return no_alpha_image
 
-    def get_dpi(self, image) -> Optional[int]:
+    def get_dpi(self, image) -> int | None:
         try:
             with Image.open(image) as im:
                 x, y = im.info["dpi"]
@@ -112,7 +137,7 @@ class RasterisedDocumentParser(DocumentParser):
             self.log.warning(f"Error while getting DPI from image {image}: {e}")
             return None
 
-    def calculate_a4_dpi(self, image) -> Optional[int]:
+    def calculate_a4_dpi(self, image) -> int | None:
         try:
             with Image.open(image) as im:
                 width, height = im.size
@@ -127,9 +152,9 @@ class RasterisedDocumentParser(DocumentParser):
 
     def extract_text(
         self,
-        sidecar_file: Optional[Path],
+        sidecar_file: Path | None,
         pdf_file: Path,
-    ) -> Optional[str]:
+    ) -> str | None:
         # When re-doing OCR, the sidecar contains ONLY the new text, not
         # the whole text, so do not utilize it in that case
         if (
@@ -158,7 +183,7 @@ class RasterisedDocumentParser(DocumentParser):
                 mode="w+",
                 dir=self.tempdir,
             ) as tmp:
-                subprocess.run(
+                run_subprocess(
                     [
                         "pdftotext",
                         "-q",
@@ -168,6 +193,7 @@ class RasterisedDocumentParser(DocumentParser):
                         pdf_file,
                         tmp.name,
                     ],
+                    logger=self.log,
                 )
                 text = self.read_file_handle_unicode_errors(Path(tmp.name))
 
@@ -205,9 +231,9 @@ class RasterisedDocumentParser(DocumentParser):
         }
 
         if "pdfa" in ocrmypdf_args["output_type"]:
-            ocrmypdf_args[
-                "color_conversion_strategy"
-            ] = self.settings.color_conversion_strategy
+            ocrmypdf_args["color_conversion_strategy"] = (
+                self.settings.color_conversion_strategy
+            )
 
         if self.settings.mode == ModeChoices.FORCE or safe_fallback:
             ocrmypdf_args["force_ocr"] = True
@@ -245,6 +271,9 @@ class RasterisedDocumentParser(DocumentParser):
             ocrmypdf_args["sidecar"] = sidecar_file
 
         if self.is_image(mime_type):
+            # This may be required, depending on the known information
+            maybe_override_pixel_limit()
+
             dpi = self.get_dpi(input_file)
             a4_dpi = self.calculate_a4_dpi(input_file)
 
@@ -283,20 +312,19 @@ class RasterisedDocumentParser(DocumentParser):
                     f"they will not be used. Error: {e}",
                 )
 
-        if self.settings.max_image_pixel is not None:
+        if (
+            self.settings.max_image_pixel is not None
+            and self.settings.max_image_pixel >= 0
+        ):
             # Convert pixels to mega-pixels and provide to ocrmypdf
             max_pixels_mpixels = self.settings.max_image_pixel / 1_000_000.0
-            if max_pixels_mpixels > 0:
-                self.log.debug(
-                    f"Calculated {max_pixels_mpixels} megapixels for OCR",
-                )
-
-                ocrmypdf_args["max_image_mpixels"] = max_pixels_mpixels
-            else:
-                self.log.warning(
-                    "There is an issue with PAPERLESS_OCR_MAX_IMAGE_PIXELS, "
-                    "this value must be at least 1 megapixel if set",
-                )
+            msg = (
+                "OCR pixel limit is disabled!"
+                if max_pixels_mpixels == 0
+                else f"Calculated {max_pixels_mpixels} megapixels for OCR"
+            )
+            self.log.debug(msg)
+            ocrmypdf_args["max_image_mpixels"] = max_pixels_mpixels
 
         return ocrmypdf_args
 
@@ -337,6 +365,7 @@ class RasterisedDocumentParser(DocumentParser):
         from ocrmypdf import EncryptedPdfError
         from ocrmypdf import InputFileError
         from ocrmypdf import SubprocessOutputError
+        from ocrmypdf.exceptions import DigitalSignatureError
 
         archive_path = Path(os.path.join(self.tempdir, "archive.pdf"))
         sidecar_file = Path(os.path.join(self.tempdir, "sidecar.txt"))
@@ -359,9 +388,9 @@ class RasterisedDocumentParser(DocumentParser):
 
             if not self.text:
                 raise NoTextFoundException("No text was found in the original document")
-        except EncryptedPdfError:
+        except (DigitalSignatureError, EncryptedPdfError):
             self.log.warning(
-                "This file is encrypted, OCR is impossible. Using "
+                "This file is encrypted and/or signed, OCR is impossible. Using "
                 "any text present in the original file.",
             )
             if original_has_text:
@@ -426,8 +455,7 @@ class RasterisedDocumentParser(DocumentParser):
                 self.text = text_original
             else:
                 self.log.warning(
-                    f"No text was found in {document_path}, the content will "
-                    f"be empty.",
+                    f"No text was found in {document_path}, the content will be empty.",
                 )
                 self.text = ""
 

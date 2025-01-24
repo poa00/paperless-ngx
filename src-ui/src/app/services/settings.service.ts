@@ -10,18 +10,29 @@ import {
 } from '@angular/core'
 import { Meta } from '@angular/platform-browser'
 import { CookieService } from 'ngx-cookie-service'
-import { first, Observable, tap } from 'rxjs'
+import { catchError, first, Observable, of, tap } from 'rxjs'
 import {
   BRIGHTNESS,
   estimateBrightnessForColor,
   hexToHsl,
 } from 'src/app/utils/color'
 import { environment } from 'src/environments/environment'
-import { UiSettings, SETTINGS, SETTINGS_KEYS } from '../data/ui-settings'
-import { User } from '../data/user'
-import { PermissionsService } from './permissions.service'
-import { ToastService } from './toast.service'
+import { DEFAULT_DISPLAY_FIELDS, DisplayField } from '../data/document'
 import { SavedView } from '../data/saved-view'
+import {
+  PAPERLESS_GREEN_HEX,
+  SETTINGS,
+  SETTINGS_KEYS,
+  UiSettings,
+} from '../data/ui-settings'
+import { User } from '../data/user'
+import {
+  PermissionAction,
+  PermissionsService,
+  PermissionType,
+} from './permissions.service'
+import { CustomFieldsService } from './rest/custom-fields.service'
+import { ToastService } from './toast.service'
 
 export interface LanguageOption {
   code: string
@@ -130,6 +141,18 @@ const LANGUAGE_OPTIONS = [
     name: $localize`Italian`,
     englishName: 'Italian',
     dateInputFormat: 'dd/mm/yyyy',
+  },
+  {
+    code: 'ja-jp',
+    name: $localize`Japanese`,
+    englishName: 'Japanese',
+    dateInputFormat: 'yyyy/mm/dd',
+  },
+  {
+    code: 'ko-kr',
+    name: $localize`Korean`,
+    englishName: 'Korean',
+    dateInputFormat: 'yyyy-mm-dd',
   },
   {
     code: 'lb-lu',
@@ -251,6 +274,13 @@ export class SettingsService {
   public globalDropzoneActive: boolean = false
   public organizingSidebarSavedViews: boolean = false
 
+  private _allDisplayFields: Array<{ id: DisplayField; name: string }> =
+    DEFAULT_DISPLAY_FIELDS
+  public get allDisplayFields(): Array<{ id: DisplayField; name: string }> {
+    return this._allDisplayFields
+  }
+  public displayFieldsInit: EventEmitter<boolean> = new EventEmitter()
+
   constructor(
     rendererFactory: RendererFactory2,
     @Inject(DOCUMENT) private document,
@@ -259,7 +289,8 @@ export class SettingsService {
     @Inject(LOCALE_ID) private localeId: string,
     protected http: HttpClient,
     private toastService: ToastService,
-    private permissionsService: PermissionsService
+    private permissionsService: PermissionsService,
+    private customFieldsService: CustomFieldsService
   ) {
     this._renderer = rendererFactory.createRenderer(null, null)
   }
@@ -268,6 +299,19 @@ export class SettingsService {
   public initializeSettings(): Observable<UiSettings> {
     return this.http.get<UiSettings>(this.baseUrl).pipe(
       first(),
+      catchError((error) => {
+        setTimeout(() => {
+          this.toastService.showError('Error loading settings', error)
+        }, 500)
+        return of({
+          settings: {
+            documentListSize: 10,
+            update_checking: { backend_setting: 'default' },
+          },
+          user: {},
+          permissions: [],
+        })
+      }),
       tap((uisettings) => {
         Object.assign(this.settings, uisettings.settings)
         if (this.get(SETTINGS_KEYS.APP_TITLE)?.length) {
@@ -282,8 +326,72 @@ export class SettingsService {
           uisettings.permissions,
           this.currentUser
         )
+
+        this.initializeDisplayFields()
       })
     )
+  }
+
+  public initializeDisplayFields() {
+    this._allDisplayFields = DEFAULT_DISPLAY_FIELDS
+
+    this._allDisplayFields = this._allDisplayFields
+      ?.map((field) => {
+        if (
+          field.id === DisplayField.NOTES &&
+          !this.get(SETTINGS_KEYS.NOTES_ENABLED)
+        ) {
+          return null
+        }
+
+        if (
+          [
+            DisplayField.TITLE,
+            DisplayField.CREATED,
+            DisplayField.ADDED,
+            DisplayField.ASN,
+            DisplayField.PAGE_COUNT,
+            DisplayField.SHARED,
+          ].includes(field.id)
+        ) {
+          return field
+        }
+
+        let type: PermissionType = Object.values(PermissionType).find((t) =>
+          t.includes(field.id)
+        )
+        if (field.id === DisplayField.OWNER) {
+          type = PermissionType.User
+        }
+        return this.permissionsService.currentUserCan(
+          PermissionAction.View,
+          type
+        )
+          ? field
+          : null
+      })
+      .filter((f) => f)
+
+    if (
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.CustomField
+      )
+    ) {
+      this.customFieldsService.listAll().subscribe((r) => {
+        this._allDisplayFields = this._allDisplayFields.concat(
+          r.results.map((field) => {
+            return {
+              id: `${DisplayField.CUSTOM_FIELD}${field.id}` as any,
+              name: field.name,
+            }
+          })
+        )
+        this.displayFieldsInit.emit(true)
+      })
+    } else {
+      this.displayFieldsInit.emit(true)
+    }
   }
 
   get displayName(): string {
@@ -317,7 +425,7 @@ export class SettingsService {
       )
     }
 
-    if (themeColor) {
+    if (themeColor?.length) {
       const hsl = hexToHsl(themeColor)
       const bgBrightnessEstimate = estimateBrightnessForColor(themeColor)
 
@@ -342,6 +450,11 @@ export class SettingsService {
       document.documentElement.style.removeProperty('--pngx-primary')
       document.documentElement.style.removeProperty('--pngx-primary-lightness')
     }
+
+    this.meta.updateTag({
+      name: 'theme-color',
+      content: themeColor?.length ? themeColor : PAPERLESS_GREEN_HEX,
+    })
   }
 
   getLanguageOptions(): LanguageOption[] {
@@ -533,7 +646,13 @@ export class SettingsService {
 
   completeTour() {
     const tourCompleted = this.get(SETTINGS_KEYS.TOUR_COMPLETE)
-    if (!tourCompleted) {
+    if (
+      !tourCompleted &&
+      this.permissionsService.currentUserCan(
+        PermissionAction.Change,
+        PermissionType.UISettings
+      )
+    ) {
       this.set(SETTINGS_KEYS.TOUR_COMPLETE, true)
       this.storeSettings()
         .pipe(first())

@@ -1,11 +1,11 @@
 import { Injectable } from '@angular/core'
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap'
+import { Observable, Subject, of } from 'rxjs'
+import { first } from 'rxjs/operators'
+import { ConfirmDialogComponent } from 'src/app/components/common/confirm-dialog/confirm-dialog.component'
 import { Document } from '../data/document'
 import { OPEN_DOCUMENT_SERVICE } from '../data/storage-keys'
 import { DocumentService } from './rest/document.service'
-import { NgbModal } from '@ng-bootstrap/ng-bootstrap'
-import { ConfirmDialogComponent } from 'src/app/components/common/confirm-dialog/confirm-dialog.component'
-import { Observable, Subject, of } from 'rxjs'
-import { first } from 'rxjs/operators'
 
 @Injectable({
   providedIn: 'root',
@@ -90,6 +90,10 @@ export class OpenDocumentsService {
     return this.dirtyDocuments.size > 0
   }
 
+  isDirty(doc: Document): boolean {
+    return this.dirtyDocuments.has(doc.id)
+  }
+
   closeDocument(doc: Document): Observable<boolean> {
     let index = this.openDocuments.findIndex((d) => d.id == doc.id)
     if (index == -1) return of(true)
@@ -152,9 +156,13 @@ export class OpenDocumentsService {
   }
 
   save() {
-    sessionStorage.setItem(
-      OPEN_DOCUMENT_SERVICE.DOCUMENTS,
-      JSON.stringify(this.openDocuments)
-    )
+    try {
+      sessionStorage.setItem(
+        OPEN_DOCUMENT_SERVICE.DOCUMENTS,
+        JSON.stringify(this.openDocuments)
+      )
+    } catch (e) {
+      console.error('Error saving open documents to session storage', e)
+    }
   }
 }

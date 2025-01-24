@@ -1,5 +1,7 @@
 import logging
 
+from allauth.mfa.adapter import get_adapter as get_mfa_adapter
+from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
@@ -26,11 +28,16 @@ class UserSerializer(serializers.ModelSerializer):
     password = ObfuscatedUserPasswordField(required=False)
     user_permissions = serializers.SlugRelatedField(
         many=True,
-        queryset=Permission.objects.all(),
+        queryset=Permission.objects.exclude(content_type__app_label="admin"),
         slug_field="codename",
         required=False,
     )
     inherited_permissions = serializers.SerializerMethodField()
+    is_mfa_enabled = serializers.SerializerMethodField()
+
+    def get_is_mfa_enabled(self, user: User):
+        mfa_adapter = get_mfa_adapter()
+        return mfa_adapter.is_mfa_enabled(user)
 
     class Meta:
         model = User
@@ -48,6 +55,7 @@ class UserSerializer(serializers.ModelSerializer):
             "groups",
             "user_permissions",
             "inherited_permissions",
+            "is_mfa_enabled",
         )
 
     def get_inherited_permissions(self, obj):
@@ -92,7 +100,7 @@ class UserSerializer(serializers.ModelSerializer):
 class GroupSerializer(serializers.ModelSerializer):
     permissions = serializers.SlugRelatedField(
         many=True,
-        queryset=Permission.objects.all(),
+        queryset=Permission.objects.exclude(content_type__app_label="admin"),
         slug_field="codename",
     )
 
@@ -105,10 +113,35 @@ class GroupSerializer(serializers.ModelSerializer):
         )
 
 
+class SocialAccountSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SocialAccount
+        fields = (
+            "id",
+            "provider",
+            "name",
+        )
+
+    def get_name(self, obj):
+        return obj.get_provider_account().to_str()
+
+
 class ProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(allow_null=False)
     password = ObfuscatedUserPasswordField(required=False, allow_null=False)
     auth_token = serializers.SlugRelatedField(read_only=True, slug_field="key")
+    social_accounts = SocialAccountSerializer(
+        many=True,
+        read_only=True,
+        source="socialaccount_set",
+    )
+    is_mfa_enabled = serializers.SerializerMethodField()
+
+    def get_is_mfa_enabled(self, user: User):
+        mfa_adapter = get_mfa_adapter()
+        return mfa_adapter.is_mfa_enabled(user)
 
     class Meta:
         model = User
@@ -118,6 +151,9 @@ class ProfileSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "auth_token",
+            "social_accounts",
+            "has_usable_password",
+            "is_mfa_enabled",
         )
 
 

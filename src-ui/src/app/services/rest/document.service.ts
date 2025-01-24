@@ -1,38 +1,32 @@
+import { HttpClient } from '@angular/common/http'
 import { Injectable } from '@angular/core'
-import { Document } from 'src/app/data/document'
-import { DocumentMetadata } from 'src/app/data/document-metadata'
-import { AbstractPaperlessService } from './abstract-paperless-service'
-import { HttpClient, HttpParams } from '@angular/common/http'
 import { Observable } from 'rxjs'
-import { Results } from 'src/app/data/results'
-import { FilterRule } from 'src/app/data/filter-rule'
 import { map, tap } from 'rxjs/operators'
-import { CorrespondentService } from './correspondent.service'
-import { DocumentTypeService } from './document-type.service'
-import { TagService } from './tag.service'
+import { AuditLogEntry } from 'src/app/data/auditlog-entry'
+import { CustomField } from 'src/app/data/custom-field'
+import {
+  DOCUMENT_SORT_FIELDS,
+  DOCUMENT_SORT_FIELDS_FULLTEXT,
+  Document,
+} from 'src/app/data/document'
+import { DocumentMetadata } from 'src/app/data/document-metadata'
 import { DocumentSuggestions } from 'src/app/data/document-suggestions'
+import { FilterRule } from 'src/app/data/filter-rule'
+import { Results } from 'src/app/data/results'
+import { SETTINGS_KEYS } from 'src/app/data/ui-settings'
 import { queryParamsFromFilterRules } from '../../utils/query-params'
+import {
+  PermissionAction,
+  PermissionType,
+  PermissionsService,
+} from '../permissions.service'
+import { SettingsService } from '../settings.service'
+import { AbstractPaperlessService } from './abstract-paperless-service'
+import { CorrespondentService } from './correspondent.service'
+import { CustomFieldsService } from './custom-fields.service'
+import { DocumentTypeService } from './document-type.service'
 import { StoragePathService } from './storage-path.service'
-
-export const DOCUMENT_SORT_FIELDS = [
-  { field: 'archive_serial_number', name: $localize`ASN` },
-  { field: 'correspondent__name', name: $localize`Correspondent` },
-  { field: 'title', name: $localize`Title` },
-  { field: 'document_type__name', name: $localize`Document type` },
-  { field: 'created', name: $localize`Created` },
-  { field: 'added', name: $localize`Added` },
-  { field: 'modified', name: $localize`Modified` },
-  { field: 'num_notes', name: $localize`Notes` },
-  { field: 'owner', name: $localize`Owner` },
-]
-
-export const DOCUMENT_SORT_FIELDS_FULLTEXT = [
-  ...DOCUMENT_SORT_FIELDS,
-  {
-    field: 'score',
-    name: $localize`:Score is a value returned by the full text search engine and specifies how well a result matches the given query:Search score`,
-  },
-]
+import { TagService } from './tag.service'
 
 export interface SelectionDataItem {
   id: number
@@ -44,6 +38,7 @@ export interface SelectionData {
   selected_correspondents: SelectionDataItem[]
   selected_tags: SelectionDataItem[]
   selected_document_types: SelectionDataItem[]
+  selected_custom_fields: SelectionDataItem[]
 }
 
 @Injectable({
@@ -52,26 +47,124 @@ export interface SelectionData {
 export class DocumentService extends AbstractPaperlessService<Document> {
   private _searchQuery: string
 
+  private _sortFields
+  get sortFields() {
+    return this._sortFields
+  }
+
+  private _sortFieldsFullText
+  get sortFieldsFullText() {
+    return this._sortFieldsFullText
+  }
+
+  private customFields: CustomField[] = []
+
   constructor(
     http: HttpClient,
     private correspondentService: CorrespondentService,
     private documentTypeService: DocumentTypeService,
     private tagService: TagService,
-    private storagePathService: StoragePathService
+    private storagePathService: StoragePathService,
+    private permissionsService: PermissionsService,
+    private settingsService: SettingsService,
+    private customFieldService: CustomFieldsService
   ) {
     super(http, 'documents')
+    if (
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.CustomField
+      )
+    ) {
+      this.customFieldService.listAll().subscribe((fields) => {
+        this.customFields = fields.results
+        this.setupSortFields()
+      })
+    }
+
+    this.setupSortFields()
+  }
+
+  private setupSortFields() {
+    this._sortFields = [...DOCUMENT_SORT_FIELDS]
+    if (
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.CustomField
+      )
+    ) {
+      this.customFields.forEach((field) => {
+        this._sortFields.push({
+          field: `custom_field_${field.id}`,
+          name: field.name,
+        })
+      })
+    }
+    let excludes = []
+    if (
+      !this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.Correspondent
+      )
+    ) {
+      excludes.push('correspondent__name')
+    }
+    if (
+      !this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.DocumentType
+      )
+    ) {
+      excludes.push('document_type__name')
+    }
+    if (
+      !this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.User
+      )
+    ) {
+      excludes.push('owner')
+    }
+    if (!this.settingsService.get(SETTINGS_KEYS.NOTES_ENABLED)) {
+      excludes.push('num_notes')
+    }
+    this._sortFields = this._sortFields.filter(
+      (field) => !excludes.includes(field.field)
+    )
+    this._sortFieldsFullText = [
+      ...this._sortFields,
+      ...DOCUMENT_SORT_FIELDS_FULLTEXT,
+    ]
   }
 
   addObservablesToDocument(doc: Document) {
-    if (doc.correspondent) {
+    if (
+      doc.correspondent &&
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.Correspondent
+      )
+    ) {
       doc.correspondent$ = this.correspondentService.getCached(
         doc.correspondent
       )
     }
-    if (doc.document_type) {
+    if (
+      doc.document_type &&
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.DocumentType
+      )
+    ) {
       doc.document_type$ = this.documentTypeService.getCached(doc.document_type)
     }
-    if (doc.tags) {
+    if (
+      doc.tags &&
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.Tag
+      )
+    ) {
       doc.tags$ = this.tagService
         .getCachedMany(doc.tags)
         .pipe(
@@ -80,7 +173,13 @@ export class DocumentService extends AbstractPaperlessService<Document> {
           )
         )
     }
-    if (doc.storage_path) {
+    if (
+      doc.storage_path &&
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.StoragePath
+      )
+    ) {
       doc.storage_path$ = this.storagePathService.getCached(doc.storage_path)
     }
     return doc
@@ -123,12 +222,12 @@ export class DocumentService extends AbstractPaperlessService<Document> {
   }
 
   getPreviewUrl(id: number, original: boolean = false): string {
-    let url = this.getResourceUrl(id, 'preview')
-    if (this._searchQuery) url += `#search="${this._searchQuery}"`
+    let url = new URL(this.getResourceUrl(id, 'preview'))
+    if (this._searchQuery) url.hash = `#search="${this.searchQuery}"`
     if (original) {
-      url += '?original=true'
+      url.searchParams.append('original', 'true')
     }
-    return url
+    return url.toString()
   }
 
   getThumbUrl(id: number): string {
@@ -150,6 +249,9 @@ export class DocumentService extends AbstractPaperlessService<Document> {
   update(o: Document): Observable<Document> {
     // we want to only set created_date
     o.created = undefined
+    o.remove_inbox_tags = !!this.settingsService.get(
+      SETTINGS_KEYS.DOCUMENT_EDITING_REMOVE_INBOX_TAGS
+    )
     return super.update(o)
   }
 
@@ -186,6 +288,10 @@ export class DocumentService extends AbstractPaperlessService<Document> {
     )
   }
 
+  getHistory(id: number): Observable<AuditLogEntry[]> {
+    return this.http.get<AuditLogEntry[]>(this.getResourceUrl(id, 'history'))
+  }
+
   bulkDownload(
     ids: number[],
     content = 'both',
@@ -203,6 +309,10 @@ export class DocumentService extends AbstractPaperlessService<Document> {
   }
 
   public set searchQuery(query: string) {
-    this._searchQuery = query
+    this._searchQuery = query.trim()
+  }
+
+  public get searchQuery(): string {
+    return this._searchQuery
   }
 }

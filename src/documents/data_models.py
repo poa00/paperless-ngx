@@ -2,9 +2,10 @@ import dataclasses
 import datetime
 from enum import IntEnum
 from pathlib import Path
-from typing import Optional
 
 import magic
+from guardian.shortcuts import get_groups_with_perms
+from guardian.shortcuts import get_users_with_perms
 
 
 @dataclasses.dataclass
@@ -15,20 +16,20 @@ class DocumentMetadataOverrides:
     meaning no override is happening
     """
 
-    filename: Optional[str] = None
-    title: Optional[str] = None
-    correspondent_id: Optional[int] = None
-    document_type_id: Optional[int] = None
-    tag_ids: Optional[list[int]] = None
-    storage_path_id: Optional[int] = None
-    created: Optional[datetime.datetime] = None
-    asn: Optional[int] = None
-    owner_id: Optional[int] = None
-    view_users: Optional[list[int]] = None
-    view_groups: Optional[list[int]] = None
-    change_users: Optional[list[int]] = None
-    change_groups: Optional[list[int]] = None
-    custom_field_ids: Optional[list[int]] = None
+    filename: str | None = None
+    title: str | None = None
+    correspondent_id: int | None = None
+    document_type_id: int | None = None
+    tag_ids: list[int] | None = None
+    storage_path_id: int | None = None
+    created: datetime.datetime | None = None
+    asn: int | None = None
+    owner_id: int | None = None
+    view_users: list[int] | None = None
+    view_groups: list[int] | None = None
+    change_users: list[int] | None = None
+    change_groups: list[int] | None = None
+    custom_field_ids: list[int] | None = None
 
     def update(self, other: "DocumentMetadataOverrides") -> "DocumentMetadataOverrides":
         """
@@ -88,6 +89,52 @@ class DocumentMetadataOverrides:
 
         return self
 
+    @staticmethod
+    def from_document(doc) -> "DocumentMetadataOverrides":
+        """
+        Fills in the overrides from a document object
+        """
+        overrides = DocumentMetadataOverrides()
+        overrides.title = doc.title
+        overrides.correspondent_id = doc.correspondent.id if doc.correspondent else None
+        overrides.document_type_id = doc.document_type.id if doc.document_type else None
+        overrides.storage_path_id = doc.storage_path.id if doc.storage_path else None
+        overrides.owner_id = doc.owner.id if doc.owner else None
+        overrides.tag_ids = list(doc.tags.values_list("id", flat=True))
+
+        overrides.view_users = list(
+            get_users_with_perms(
+                doc,
+                only_with_perms_in=["view_document"],
+            ).values_list("id", flat=True),
+        )
+        overrides.change_users = list(
+            get_users_with_perms(
+                doc,
+                only_with_perms_in=["change_document"],
+            ).values_list("id", flat=True),
+        )
+        overrides.custom_field_ids = list(
+            doc.custom_fields.values_list("field", flat=True),
+        )
+
+        groups_with_perms = get_groups_with_perms(
+            doc,
+            attach_perms=True,
+        )
+        overrides.view_groups = [
+            group.id
+            for group in groups_with_perms
+            if "view_document" in groups_with_perms[group]
+        ]
+        overrides.change_groups = [
+            group.id
+            for group in groups_with_perms
+            if "change_document" in groups_with_perms[group]
+        ]
+
+        return overrides
+
 
 class DocumentSource(IntEnum):
     """
@@ -108,7 +155,7 @@ class ConsumableDocument:
 
     source: DocumentSource
     original_file: Path
-    mailrule_id: Optional[int] = None
+    mailrule_id: int | None = None
     mime_type: str = dataclasses.field(init=False, default=None)
 
     def __post_init__(self):
